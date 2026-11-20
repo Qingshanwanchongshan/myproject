@@ -34,6 +34,8 @@ runs/
 wandb/
 checkpoints/
 tmp/
+data/
+tensorboard/
 *.bin
 *.pt
 *.pth

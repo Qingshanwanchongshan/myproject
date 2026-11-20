@@ -1,0 +1,24 @@
+# EA-DPO 运行依赖
+#
+#   python -m pip install torch==2.8.0 --index-url https://download.pytorch.org/whl/cu124
+#   python -m pip install -r requirements.txt
+#   python -m pip install -e './trl-1.18.1[peft]'                                    # 再装修改版 TRL
+#
+# 下限来自 trl-1.18.1/pyproject.toml：requires-python>=3.11、torch>=2.6.0、
+# accelerate>=1.11.0、datasets>=4.7.0、peft>=0.17.0。
+# 已验证组合：Python 3.11 + torch 2.8.0(cu124) + transformers 5.23.0（33 个单测通过）。
+# transformers 不要随意升：TRL v1.18.1 的 fused LM head 与 AttentionInterface 依赖这个版本。
+
+# torch 故意不写进依赖：pip 默认会装 CPU 版，必须按服务器 CUDA 版本单独装（见上面第一行）。
+# torch>=2.6.0
+
+transformers==5.23.0
+accelerate>=1.11.0
+datasets>=4.7.0
+peft>=0.17.0
+jinja2>=3.1.6           # transformers 5.x 只在运行时检查这个下限
+pyyaml>=6.0
+tensorboard>=2.16       # 配 report_to: tensorboard；没装会自动跳过，不会让训练失败
+
+# 自检
+pytest>=8.0

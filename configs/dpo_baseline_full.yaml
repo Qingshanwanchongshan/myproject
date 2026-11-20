@@ -1,0 +1,42 @@
+# =============================================================================
+# 标准 DPO 对照组（第二轮：全量 1 epoch）
+# -----------------------------------------------------------------------------
+# 与 configs/ea_dpo_full.yaml 逐字段相同，只有最后的 ea_* 块不同。
+# =============================================================================
+model_name_or_path: Qwen/Qwen2.5-3B-Instruct
+dataset_name: data/uf-full
+attn_implementation: sdpa
+dtype: bfloat16
+bf16: true
+
+use_peft: true
+lora_r: 16
+lora_alpha: 32
+lora_target_modules: all-linear
+
+learning_rate: 1.0e-5
+beta: 0.1
+per_device_train_batch_size: 1
+gradient_accumulation_steps: 8
+warmup_ratio: 0.03
+max_length: 1024
+max_steps: -1
+num_train_epochs: 1
+
+logging_steps: 10
+eval_strategy: steps
+eval_steps: 500
+per_device_eval_batch_size: 2
+save_strategy: steps
+save_steps: 500
+save_total_limit: 2
+report_to: tensorboard
+
+gradient_checkpointing: true
+disable_dropout: true
+dataset_num_proc: 8
+
+seed: 42
+output_dir: outputs/dpo-3b-full
+
+ea_dpo_enabled: false

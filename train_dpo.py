@@ -70,7 +70,68 @@ if not (_local_trl / "trl" / "trainer" / "ea_dpo.py").is_file():
 sys.path.insert(0, str(_local_trl))
 
 
-def main(script_args, training_args, model_args, dataset_args):
+def split_resume_args(argv):
+    """Take `--resume_from_checkpoint` out of argv before `TrlParser` sees it.
+
+    `TrainingArguments` ships a field of that name, but its accepted value form has changed across
+    transformers releases (`True` vs. a checkpoint path). Resolving it here keeps one stable syntax:
+
+        --resume_from_checkpoint auto            # newest checkpoint-* under output_dir, if any
+        --resume_from_checkpoint true            # let Trainer pick the newest one itself
+        --resume_from_checkpoint outputs/x/checkpoint-500
+        --resume_from_checkpoint false           # explicit fresh start
+
+    Everything else is returned untouched.
+    """
+    resume = None
+    rest = []
+    index = 0
+    while index < len(argv):
+        token = argv[index]
+        if token == "--resume_from_checkpoint":
+            if index + 1 >= len(argv):
+                raise SystemExit(
+                    "--resume_from_checkpoint needs a value: auto, true, false, or a checkpoint path"
+                )
+            resume = argv[index + 1]
+            index += 2
+        elif token.startswith("--resume_from_checkpoint="):
+            resume = token.split("=", 1)[1]
+            index += 1
+        else:
+            rest.append(token)
+            index += 1
+    return resume, rest
+
+
+def latest_checkpoint(output_dir):
+    """Return the newest `checkpoint-<step>` directory under output_dir, or None."""
+    root = Path(output_dir)
+    if not root.is_dir():
+        return None
+    steps = []
+    for path in root.glob("checkpoint-*"):
+        suffix = path.name[len("checkpoint-") :]
+        if path.is_dir() and suffix.isdigit():
+            steps.append((int(suffix), path))
+    return str(max(steps)[1]) if steps else None
+
+
+def resolve_resume(value, output_dir):
+    """Turn the CLI value into what `Trainer.train` accepts: None, True, or a path."""
+    if value is None:
+        return None
+    lowered = value.lower()
+    if lowered in {"true", "1", "yes"}:
+        return True
+    if lowered in {"false", "0", "no", "none", ""}:
+        return None
+    if lowered == "auto":
+        return latest_checkpoint(output_dir)
+    return value
+
+
+def main(script_args, training_args, model_args, dataset_args, resume_from_checkpoint=None):
     import transformers
     from accelerate.logging import get_logger
     from datasets import load_dataset
@@ -125,7 +186,12 @@ def main(script_args, training_args, model_args, dataset_args):
         ]
 
     # Train the model
-    trainer.train(resume_from_checkpoint=training_args.resume_from_checkpoint)
+    resume = resolve_resume(resume_from_checkpoint, training_args.output_dir)
+    if resume is not None:
+        trainer.accelerator.print(f"Resuming training from: {resume if isinstance(resume, str) else 'latest checkpoint'}")
+    else:
+        trainer.accelerator.print("Starting a fresh run (no checkpoint to resume).")
+    trainer.train(resume_from_checkpoint=resume)
 
     # Log training complete. Keep this file and its prints ASCII-only: on a console whose encoding cannot
     # represent emoji (e.g. Windows GBK/cp936) the upstream emoji prints raise UnicodeEncodeError here, which
@@ -157,6 +223,8 @@ def make_parser(subparsers: argparse._SubParsersAction | None = None, prog: str 
 
 
 if __name__ == "__main__":
+    resume_value, remaining = split_resume_args(sys.argv[1:])
+    sys.argv = [sys.argv[0], *remaining]
     parser = make_parser()
     script_args, training_args, model_args, dataset_args = parser.parse_args_and_config(fail_with_unknown_args=True)
-    main(script_args, training_args, model_args, dataset_args)
+    main(script_args, training_args, model_args, dataset_args, resume_value)

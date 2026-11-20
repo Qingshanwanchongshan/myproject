@@ -1,0 +1,57 @@
+# =============================================================================
+# EA-DPO 第二轮：全量 1 epoch（7642 步）
+# -----------------------------------------------------------------------------
+# 只在第一轮趋势确认后才跑。数据 data/uf-full 由 scripts/prepare_data.py 生成
+# （train 全量 61135 对 / test 与第一轮相同的 512 对固定评测集）。
+#
+# 4090 24G 上约 18-22 小时；A100 80G 约 8-10 小时；H100 约 5-6 小时。
+# 只跑一部分：--max_steps 3000（约 40% 数据）。
+# 中断后继续：--resume_from_checkpoint auto
+# =============================================================================
+model_name_or_path: Qwen/Qwen2.5-3B-Instruct
+dataset_name: data/uf-full
+attn_implementation: sdpa
+dtype: bfloat16
+bf16: true
+
+use_peft: true
+lora_r: 16
+lora_alpha: 32
+lora_target_modules: all-linear
+
+learning_rate: 1.0e-5
+beta: 0.1
+per_device_train_batch_size: 1
+gradient_accumulation_steps: 8
+warmup_ratio: 0.03
+max_length: 1024
+max_steps: -1
+num_train_epochs: 1
+
+logging_steps: 10
+eval_strategy: steps
+eval_steps: 500
+per_device_eval_batch_size: 2
+save_strategy: steps
+save_steps: 500
+save_total_limit: 2
+report_to: tensorboard
+
+gradient_checkpointing: true
+disable_dropout: true
+dataset_num_proc: 8
+
+seed: 42
+output_dir: outputs/ea-3b-full
+
+ea_dpo_enabled: true
+ea_lambda: 0.5
+ea_tau_chosen: 1.0
+ea_tau_rejected: 0.7
+ea_kappa_chosen: 1.0
+ea_kappa_rejected: 1.0
+ea_gamma: 1.0
+ea_entropy_cap_quantile: 0.95
+ea_attention_chunk_size: 128
+ea_row_delta: 1.0e-8
+ea_epsilon: 1.0e-8

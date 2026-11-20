@@ -1,23 +1,58 @@
-# Smoke test first: override --max_steps only after checking the logs.
-model_name_or_path: Qwen/Qwen2.5-0.5B-Instruct
-dataset_name: trl-lib/ultrafeedback_binarized
+# =============================================================================
+# EA-DPO 第一轮：20% 数据看趋势（单卡 RTX 4090 24G，bf16）
+# -----------------------------------------------------------------------------
+# 数据   : data/uf-20pct —— 由 `python scripts/prepare_data.py` 生成
+#          train 12000 对（全量 61135 对的 19.6%）/ test 512 对（固定评测集）
+# 步数   : 1500 = 12000 / 8，正好是这个子集的一个 epoch
+# 对照组 : configs/dpo_baseline.yaml —— 除 ea_* 外逐字段相同
+# 全量轮 : configs/ea_dpo_full.yaml
+# 冒烟   : 不改本文件，命令行覆盖
+#          --max_steps 10 --eval_strategy no --save_strategy no --output_dir outputs/smoke-ea
+# 续跑   : --resume_from_checkpoint auto
+# =============================================================================
+model_name_or_path: Qwen/Qwen2.5-3B-Instruct
+dataset_name: data/uf-20pct
 attn_implementation: sdpa
 dtype: bfloat16
 bf16: true
+
+# ---- LoRA：all-linear + r16/alpha32，让两种方法都有足够容量把差异表现出来 ----
 use_peft: true
 lora_r: 16
 lora_alpha: 32
-learning_rate: 5.0e-6
+lora_target_modules: all-linear
+
+# ---- 优化：有效 batch 8 对（1 × 8），线性衰减 + 3% warmup ----
+# lr=1.0e-5：all-linear LoRA 的常用量级（原 5.0e-6 偏保守）。
+# 想验证结论不是学习率造出来的：LR=5.0e-6 TAG=lr5e-6 bash scripts/run_first_round.sh
+learning_rate: 1.0e-5
+beta: 0.1
 per_device_train_batch_size: 1
 gradient_accumulation_steps: 8
+warmup_ratio: 0.03
 max_length: 1024
-max_steps: 10
-logging_steps: 1
-eval_strategy: "no"
-save_strategy: "no"
-report_to: "none"
+max_steps: 1500
+num_train_epochs: 1
+
+# ---- 日志 / 评测 / 存档 ----
+logging_steps: 5
+eval_strategy: steps
+eval_steps: 250
+per_device_eval_batch_size: 2
+save_strategy: steps
+save_steps: 250
+save_total_limit: 3
+report_to: tensorboard
+
+# ---- 显存与数据处理 ----
+gradient_checkpointing: true
+disable_dropout: true
+dataset_num_proc: 8
+
 seed: 42
-output_dir: outputs/ea-dpo-smoke
+output_dir: outputs/ea-3b-20pct
+
+# ---- EA-DPO：论文默认值（不是调参结论），第一轮只验证趋势 ----
 ea_dpo_enabled: true
 ea_lambda: 0.5
 ea_tau_chosen: 1.0
