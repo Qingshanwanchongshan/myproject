@@ -1,0 +1,21 @@
+# Same model/data/seed/optimizer settings as ea_dpo.yaml.
+model_name_or_path: Qwen/Qwen2.5-0.5B-Instruct
+dataset_name: trl-lib/ultrafeedback_binarized
+attn_implementation: sdpa
+dtype: bfloat16
+bf16: true
+use_peft: true
+lora_r: 16
+lora_alpha: 32
+learning_rate: 5.0e-6
+per_device_train_batch_size: 1
+gradient_accumulation_steps: 8
+max_length: 1024
+max_steps: 10
+logging_steps: 1
+eval_strategy: "no"
+save_strategy: "no"
+report_to: "none"
+seed: 42
+output_dir: outputs/dpo-baseline-smoke
+ea_dpo_enabled: false

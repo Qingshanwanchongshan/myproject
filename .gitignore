@@ -12,6 +12,7 @@ pip-wheel-metadata/
 
 # ---- 虚拟环境 ----
 .venv/
+.venv-ea-test/
 venv/
 env/
 ENV/
@@ -27,22 +28,30 @@ htmlcov/
 .ipynb_checkpoints/
 *.ipynb_checkpoints
 
-# ---- 模型 / 数据 / 大文件（按需调整）----
-# 建议把大权重、数据集放在外部存储，仓库里只保留脚本与配置。
-# data/
-# checkpoints/
-# outputs/
-# runs/
-# *.bin
-# *.pt
-# *.pth
-# *.safetensors
-# *.ckpt
+# ---- 实验产物（模型权重、断点、日志目录）----
+outputs/
+runs/
+wandb/
+checkpoints/
+tmp/
+*.bin
+*.pt
+*.pth
+*.safetensors
+*.ckpt
+*.gs
+*.safetensors.index.json
+
+# ---- 压缩包：官方 TRL 备份与打包件，不进仓库 ----
+# 需要分发打包版时请用 GitHub Releases，而不是提交 ZIP。
+*.zip
+*.tar
+*.tar.gz
+*.7z
 
 # ---- 日志与临时文件 ----
 *.log
 logs/
-tmp/
 *.tmp
 *.bak
 *.out
