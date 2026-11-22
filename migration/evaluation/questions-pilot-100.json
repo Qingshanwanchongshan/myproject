@@ -1,0 +1,402 @@
+[
+  {
+    "instruction": "Hi, my sister and her girlfriends want me to play kickball with them. Can you explain how the game is played, so they don't take advantage of me?",
+    "dataset": "helpful_base"
+  },
+  {
+    "instruction": "How do I wrap a present neatly?",
+    "dataset": "helpful_base"
+  },
+  {
+    "instruction": "Who is Larry Page?",
+    "dataset": "helpful_base"
+  },
+  {
+    "instruction": "Help me find a good rated electric saw.",
+    "dataset": "helpful_base"
+  },
+  {
+    "instruction": "What are some species of bears that are now extinct?",
+    "dataset": "helpful_base"
+  },
+  {
+    "instruction": "I am going to make pumpkin pie for the first time.  Can you help me?",
+    "dataset": "helpful_base"
+  },
+  {
+    "instruction": "How do I know if my house has a water leak?",
+    "dataset": "helpful_base"
+  },
+  {
+    "instruction": "I like to host guests at my home from time to time, and I am gathering  recipes of different dishes and drinks to keep things interesting. I am interested in trying some Indonesian dishes. Can you give me a recipe for Opor Ayam?",
+    "dataset": "helpful_base"
+  },
+  {
+    "instruction": "How can I fix a leaking roof?",
+    "dataset": "helpful_base"
+  },
+  {
+    "instruction": "I have a hard time falling asleep.  Is there any type of music that can help me fall asleep faster?",
+    "dataset": "helpful_base"
+  },
+  {
+    "instruction": "How do I get better at aiming with my slingshot?",
+    "dataset": "helpful_base"
+  },
+  {
+    "instruction": "I like to host guests at my home from time to time, and I am gathering  recipes of different dishes and drinks to keep things interesting. I am interested in trying some Hong Kong  dishes. Can you give me a recipe for Tong Sui?",
+    "dataset": "helpful_base"
+  },
+  {
+    "instruction": "Please tell me about pearls.  Where are they found?",
+    "dataset": "helpful_base"
+  },
+  {
+    "instruction": "does the dinosaurs really exist?",
+    "dataset": "helpful_base"
+  },
+  {
+    "instruction": "what are some big cat hybrids?",
+    "dataset": "helpful_base"
+  },
+  {
+    "instruction": "what is the name of chris tucker first movie",
+    "dataset": "helpful_base"
+  },
+  {
+    "instruction": "Message to client for accepting offer for summary video",
+    "dataset": "koala"
+  },
+  {
+    "instruction": "Write an interview between a Female Film director and a journalist. Use advanced english to talk about the low number of Female Film Directors in World Films. Also include many questions and answer where the director cheer up new generations to make films , where female rights can be outstanding.",
+    "dataset": "koala"
+  },
+  {
+    "instruction": "what is needed for self-sufficient living spaces",
+    "dataset": "koala"
+  },
+  {
+    "instruction": "antennas that transmit an equal amount of energy in the horizontal direction are called",
+    "dataset": "koala"
+  },
+  {
+    "instruction": "“One One was a race horse Two Two was one too. One One won one race. Two Two won one too.” How many horses are in this story?",
+    "dataset": "koala"
+  },
+  {
+    "instruction": "which second messenger molecule acts on the endoplasmic reticulum to release calcium ions",
+    "dataset": "koala"
+  },
+  {
+    "instruction": "Is online casino legal in India?",
+    "dataset": "koala"
+  },
+  {
+    "instruction": "Write a section for an award application detailing how photography has insipired you",
+    "dataset": "koala"
+  },
+  {
+    "instruction": "cost of fuel for a 14 mile journey in a car with 48mpg, fuel costs 625 pence per gallon and there is heavy traffic for half the journey",
+    "dataset": "koala"
+  },
+  {
+    "instruction": "Introduce the ”financial markets and institutions“ by Frederic S. Mishkin",
+    "dataset": "koala"
+  },
+  {
+    "instruction": "what are five important topics for game design",
+    "dataset": "koala"
+  },
+  {
+    "instruction": "what are some basics of nutrition that i should be aware of",
+    "dataset": "koala"
+  },
+  {
+    "instruction": "question about Computer architecture and organization \nfor 6 marks\nwhat in general terms is the distinction between computer organization and computer architecture ?\ngive answer in full sentence points if possible",
+    "dataset": "koala"
+  },
+  {
+    "instruction": "The sum of the distances the sun travels around the Earth during a solar eclipse is 1059 kilometres. Write a formula that finds the distance between the sun and Earth. How many years will the eclipse last?",
+    "dataset": "koala"
+  },
+  {
+    "instruction": "what are african governments doing to improve air traffic connectivity",
+    "dataset": "koala"
+  },
+  {
+    "instruction": "who does lady gaga play in american horror story",
+    "dataset": "koala"
+  },
+  {
+    "instruction": "Write a poem about Mike and Joe becoming millionaires by leveraging the power of AI to become the greatest Agile coaches in history. Include content from the agile manifesto.",
+    "dataset": "koala"
+  },
+  {
+    "instruction": "A man has a rather old car being worth $2000. <br>He saw a secondhand car being worth $8000. He wants to keep his old car until he can buy the secondhand one.<br>He thinks he can save $1000 each month but the prices of his old <br>car and of the new one decrease of 1.5 percent per month.<br>Furthermore this percent of loss increases of `0.5` percent <br>Our man finds it difficult to make all these calculations.<br>Can you help him?<br>How many months will it take him to save up enough money to buy the car he wants, <br>and how much money will he have left over?",
+    "dataset": "koala"
+  },
+  {
+    "instruction": "can you generate a data model for a test automation tool considering organizations, users, projects, goals (under projects), tests (under goals) and executions (of test cases). Each execution has a date and a passed or failed status.",
+    "dataset": "koala"
+  },
+  {
+    "instruction": "How would the Future of AI in 10 Years look?",
+    "dataset": "oasst"
+  },
+  {
+    "instruction": "can stainless steel be magnetic in some instances?",
+    "dataset": "oasst"
+  },
+  {
+    "instruction": "Hi, can you help me write my memoir?",
+    "dataset": "oasst"
+  },
+  {
+    "instruction": "How many black holes are known to exists at the time",
+    "dataset": "oasst"
+  },
+  {
+    "instruction": "A statistical model is a mathematical model that embodies a set of statistical assumptions concerning the generation of sample data (and similar data from a larger population). A statistical model represents, often in considerably idealized form, the data-generating process.\n\nA statistical model is usually specified as a mathematical relationship between one or more random variables and other non-random variables. As such, a statistical model is \"a formal representation of a theory\" (Herman Adèr quoting Kenneth Bollen).\n\nAll statistical hypothesis tests and all statistical estimators are derived via statistical models. More generally, statistical models are part of the foundation of statistical inference.\n\nCould you explain each sentence in simple terms?",
+    "dataset": "oasst"
+  },
+  {
+    "instruction": "What are the five most common causes of stress among people?",
+    "dataset": "oasst"
+  },
+  {
+    "instruction": "What happened to schrodinger's cat?",
+    "dataset": "oasst"
+  },
+  {
+    "instruction": "Famously, some spy-satellites from the KeyHole series developed and operated by the US National Reconnaissance Office, where similar in capabilities to the Hubble Space Telescope, but then pointed at the earth rather than out into the universe. What can you tell me about these satellites? What era were they developed? Are they still active, and what are their approximate capabilities thought to be?",
+    "dataset": "oasst"
+  },
+  {
+    "instruction": "Is the ATF a violation in of itself against the American people?",
+    "dataset": "oasst"
+  },
+  {
+    "instruction": "Why does the second batch of pancakes brown much faster?",
+    "dataset": "oasst"
+  },
+  {
+    "instruction": "Write a C++ function that takes a reference to a std::string containing markdown formatted text and returns a std::string containing html formatted text.",
+    "dataset": "oasst"
+  },
+  {
+    "instruction": "if it takes 8 hours to fly to Singapore, stop over for an hour and a half and then fly 14 hours to London then what is the total travel time if the plane is delayed in Singapore",
+    "dataset": "oasst"
+  },
+  {
+    "instruction": "What is the capital of Australia?",
+    "dataset": "oasst"
+  },
+  {
+    "instruction": "I live in Scotland and would like to know the most cost effective way to heat my house considering the rise in both gas and electric prices. I have a gas powered boiler which can provide central heating to the whole house, but I could also use electric heaters to heat individual rooms. Would it be cheaper to heat an individual room using electricity, or the whole using gas? The radiators are hidden behind shrouds so I am unable to turn off the heating in individual rooms.",
+    "dataset": "oasst"
+  },
+  {
+    "instruction": "Please give me a table of the average temperature in December, by state, in the United States of Ameria. Column 1 should be the state name. Column 2 should be the average temperature in December.",
+    "dataset": "oasst"
+  },
+  {
+    "instruction": "List the pieces of a reinforcement learning system that can learn how to play Atari games.",
+    "dataset": "oasst"
+  },
+  {
+    "instruction": "Why can time seem to slow down in dangerous situations?",
+    "dataset": "oasst"
+  },
+  {
+    "instruction": "what is the Infinite banking concept?",
+    "dataset": "oasst"
+  },
+  {
+    "instruction": "Can I compile python code to make it faster?",
+    "dataset": "oasst"
+  },
+  {
+    "instruction": "What is the meaning of life?",
+    "dataset": "oasst"
+  },
+  {
+    "instruction": "Write me a function in JavaScript that takes an array of 5 numbers as input and checks if any of the numbers is a valid prime number, if it is print the number to the console.",
+    "dataset": "oasst"
+  },
+  {
+    "instruction": "What's the furthest back we can prove human existence? Is there good reason to believe it goes further then this point?",
+    "dataset": "oasst"
+  },
+  {
+    "instruction": "what does the @ in python do",
+    "dataset": "oasst"
+  },
+  {
+    "instruction": "Can you describe the process that use to generate answers? Please provide a step by step explanation.",
+    "dataset": "oasst"
+  },
+  {
+    "instruction": "How long will it take to walk around the world, assuming that would be possible?",
+    "dataset": "oasst"
+  },
+  {
+    "instruction": "Please implement the Timsort algorithm on Lean 4 and explain your code",
+    "dataset": "oasst"
+  },
+  {
+    "instruction": "I've recently started playing the turn-based strategy game Into the Breach. I have read online that the game is considered to have 'perfect information'. What is meant by 'perfect information' in this context?",
+    "dataset": "oasst"
+  },
+  {
+    "instruction": "The tone of the email should be changed and rewritten in a more professional manner.\n\nSubject: Asking for Vacation Time\nHi [Employer], \nI hope all is well. I am writing to request a day off on [date]. I have already taken care of my work responsibilities for that day and will be available to answer any questions or concerns you may have. \nThank you for your time, \n[Your name]",
+    "dataset": "selfinstruct"
+  },
+  {
+    "instruction": "Write a social media post about the call for collaboration on a crowdsourcing project in a persuasive way.",
+    "dataset": "selfinstruct"
+  },
+  {
+    "instruction": "Come up with some search queries on google about coding stuff.",
+    "dataset": "selfinstruct"
+  },
+  {
+    "instruction": "When you're stuck on a coding problem, the best place to look for help is in the documentation. Read the docs carefully and see if there's a section that covers your specific issue. Often, the answer will be right there in front of you. If not, try searching for key terms related to your problem. Come up with the useful links about the given search term.\n\nsql find duplicate values",
+    "dataset": "selfinstruct"
+  },
+  {
+    "instruction": "Please write the Excel function name associated with each description.\n\n- Returns the number of days between two dates\n- Returns the starting position of a text string within another text string.\n- Returns the number in the middle of the set of given numbers",
+    "dataset": "selfinstruct"
+  },
+  {
+    "instruction": "Find sentences from reliable sources such as the Guardian or Forbes that contain the exact match for the given sentence or phrase. Also, mention the source of each sentence.\n\nThere are great options",
+    "dataset": "selfinstruct"
+  },
+  {
+    "instruction": "Provide an example of how a table of contents can be generated automatically in a LATEX document. Make sure your example contains the necessary commands.",
+    "dataset": "selfinstruct"
+  },
+  {
+    "instruction": "We've already decided on the title and topic for our blog post. I would appreciate it if you wrote an introduction paragraph to attract the readers' attention.\n\nBlog title: Healthy Apple Muffins\nBlog Topic: recipe and tips for cooking a good apple muffin",
+    "dataset": "selfinstruct"
+  },
+  {
+    "instruction": "Write a section for a blog post and try to cover all of the provided information about this section in your text.\n\nBlog Topic: 7 Fall Fashion Trends Worth Taking on Your Trip\nSection Title: Trusty Jeans\nMain point of the section: jeans can be worn all year and look good with everything .",
+    "dataset": "selfinstruct"
+  },
+  {
+    "instruction": "Using the provided topic as a starting point, brainstorm ideas for videos that can be made about it on YouTube.\n\nIn spite of the fact that procrastination feels bad to you, why do you do it?",
+    "dataset": "selfinstruct"
+  },
+  {
+    "instruction": "Give a brief summary of the movie or series' plot.\n\nBreaking Bad (TV Series 2008–2013)",
+    "dataset": "selfinstruct"
+  },
+  {
+    "instruction": "Give me an idea of the mental exercises you do to inspire yourself.",
+    "dataset": "selfinstruct"
+  },
+  {
+    "instruction": "Answer the following question.\n\nHow do you say \"good evening\" in French.",
+    "dataset": "selfinstruct"
+  },
+  {
+    "instruction": "Come up with healthy and easy dinner ideas for weeknights.",
+    "dataset": "selfinstruct"
+  },
+  {
+    "instruction": "Choose the best books from the given genre.\n\nCrime & Mystery",
+    "dataset": "selfinstruct"
+  },
+  {
+    "instruction": "Indicate the genre of the book to which it belongs.\n\nLove in the Time of Cholera",
+    "dataset": "selfinstruct"
+  },
+  {
+    "instruction": "Verify the correctness of the given statement.\n\n\"For all integers j and k, if j and k are odd, then jk is odd.\"",
+    "dataset": "selfinstruct"
+  },
+  {
+    "instruction": "Identify all words that match the pattern given.\n\nH_AR_",
+    "dataset": "selfinstruct"
+  },
+  {
+    "instruction": "The given text must be classified as offensive or not offensive.\n\nYou acted really crazy last night.",
+    "dataset": "selfinstruct"
+  },
+  {
+    "instruction": "Take a look at the contract and extract the parties of the agreement from it.\n\nAs of the 13th day of December 2021, this Music Recording Agreement (\"Agreement\") is made between Good Kid, a Toronto-based musical group (\"Artist\"), and Universal Music Group, a record label with license number 545345 (\"Record Label\"). The Artist and the Recording Label may be referred to in this Agreement individually as \"Parties\" and collectively as \"Parties.\" Work under this Agreement will begin on March 15, 2022, and will last for the duration of the Agreement.",
+    "dataset": "selfinstruct"
+  },
+  {
+    "instruction": "Come up with an interesting idea for a new movie plot. Your plot should be described with a title and a summary.",
+    "dataset": "selfinstruct"
+  },
+  {
+    "instruction": "List a few popular songs from the given album.\n\nBack To Black",
+    "dataset": "selfinstruct"
+  },
+  {
+    "instruction": "Paraphrase the given text in an academic style.\n\nLots of papers have been published on this topic.",
+    "dataset": "selfinstruct"
+  },
+  {
+    "instruction": "Include important study notes and key points that someone should know about the given subject.\n\nhistory of the USA",
+    "dataset": "selfinstruct"
+  },
+  {
+    "instruction": "Predict how many stars the author will give to the restaurant from a Yelp review.\n\nThe reviews were great, but honestly i felt it was just ok. Seemed like a typical tourist spot were the food was mediocre. The service was ok, not great, but not the worst.\nThe bread was very good. I ordered the muscle fries. They had a sweet Vidalia onion flavor. No need for fries bc they were soggy wo much flavor. My boyfriend ordered a pesto chicken pasta and it was again mediocre.",
+    "dataset": "selfinstruct"
+  },
+  {
+    "instruction": "Using the ingredients that are available, create a dinner recipe.\n\nKale + almond butter + apple cider vinegar + agave nectar + tamari",
+    "dataset": "selfinstruct"
+  },
+  {
+    "instruction": "What are the main differences between Python and JavaScript programming languages?",
+    "dataset": "vicuna"
+  },
+  {
+    "instruction": "How can I increase my productivity while working from home?",
+    "dataset": "vicuna"
+  },
+  {
+    "instruction": "What are the most effective strategies for conflict resolution in the workplace?",
+    "dataset": "vicuna"
+  },
+  {
+    "instruction": "If you were a Shakespearean character, how would you declare your love for someone in a soliloquy?",
+    "dataset": "vicuna"
+  },
+  {
+    "instruction": "As a sports commentator, describe the winning play in the final seconds of a championship game.",
+    "dataset": "vicuna"
+  },
+  {
+    "instruction": "How can you determine if a person is genuinely interested in a conversation or simply being polite?",
+    "dataset": "vicuna"
+  },
+  {
+    "instruction": "How many snowflakes fall during a typical winter? Try to explain your answer. Your explanation should take the reader through your reasoning step-by-step.",
+    "dataset": "vicuna"
+  },
+  {
+    "instruction": "Implement a Python function to find the longest common subsequence of two input strings using dynamic programming.",
+    "dataset": "vicuna"
+  },
+  {
+    "instruction": "Implement a regular expression in Python to validate an email address.",
+    "dataset": "vicuna"
+  },
+  {
+    "instruction": "Solve for x in the equation 3x + 10 = 5(x - 2).",
+    "dataset": "vicuna"
+  },
+  {
+    "instruction": "Can you help me write a formal email to a potential business partner proposing a joint venture?",
+    "dataset": "vicuna"
+  },
+  {
+    "instruction": "Write a symphony concert review, discussing the orchestra's performance and overall audience experience.",
+    "dataset": "vicuna"
+  }
+]

@@ -1,0 +1,13 @@
+{
+  "source": "Previously backed-up official AlpacaEval questions; exact historical pilot selection preserved. No model outputs included.",
+  "files": {
+    "questions-805.json": {
+      "sha256": "4cbedde7bc0cd5fc68a2ef82bb78167cf1acb5bf92b1e1a6b37482d65007e360",
+      "bytes": 180825
+    },
+    "questions-pilot-100.json": {
+      "sha256": "81ce52592228c0162273f0fac172f5467a152b790995fab62d10a5177317fb4d",
+      "bytes": 18944
+    }
+  }
+}
