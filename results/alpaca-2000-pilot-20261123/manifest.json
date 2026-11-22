@@ -1,0 +1,33 @@
+{
+  "phase": "answers_complete_upload_pending",
+  "checkpoint_step": 2000,
+  "questions_per_model": 100,
+  "models": [
+    "D-DPO",
+    "C-kappa15-lr5e6"
+  ],
+  "scoring": "not_started",
+  "files": [
+    {
+      "file": "D-DPO.json",
+      "bytes": 210182,
+      "sha256": "93ae5a9b25a1b6b758b2e3ad3d3f3d5a2a804bae06497b314baf3689b4c67646"
+    },
+    {
+      "file": "D-DPO.metadata.json",
+      "bytes": 506,
+      "sha256": "fbf59b1d0d377fa58773eb81e8b7f228fe4e7333af48724e9cc483862a8df2f8"
+    },
+    {
+      "file": "C-kappa15-lr5e6.json",
+      "bytes": 229090,
+      "sha256": "dbcb7e2597817db90b2e0b294f7766e698c5e82ae26593f5fb80c40f53489f5b"
+    },
+    {
+      "file": "C-kappa15-lr5e6.metadata.json",
+      "bytes": 526,
+      "sha256": "25b17cc1dd536c471b7b1d243df5c3501224e26feb772b6728c7c543c115d129"
+    }
+  ],
+  "AB_generation_cancelled": true
+}

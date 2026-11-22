@@ -1,0 +1,11 @@
+{
+  "base": "/data/buaa_hua/hf_cache/hub/models--Qwen--Qwen2.5-3B-Instruct/snapshots/aa8e72537993ba99e69dfaafa59ed015b17504d1",
+  "adapter": "/data/buaa_hua/myproject/outputs/alpaca-2000-pilot-20261123/adapters/C-kappa15-lr5e6",
+  "dataset_sha256": "81ce52592228c0162273f0fac172f5467a152b790995fab62d10a5177317fb4d",
+  "generator": "C-kappa15-lr5e6-2000",
+  "pairs": 100,
+  "do_sample": false,
+  "max_new_tokens": 2048,
+  "batch_size": 1,
+  "prompt": "tokenizer.apply_chat_template, user message, add_generation_prompt=True"
+}
