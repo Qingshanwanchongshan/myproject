@@ -13,6 +13,8 @@ pip-wheel-metadata/
 # ---- 虚拟环境 ----
 .venv/
 .venv-ea-test/
+.alpaca-eval-venv/
+.alpaca-private/
 venv/
 env/
 ENV/
@@ -33,6 +35,7 @@ outputs/
 runs/
 wandb/
 checkpoints/
+remote_backups/
 tmp/
 data/
 tensorboard/

@@ -1,11 +1,11 @@
 # =============================================================================
-# 标准 DPO 对照组（第一轮，20% 数据）
+# 标准 DPO 对照组（第一轮，全量数据的 50%）
 # -----------------------------------------------------------------------------
 # 与 configs/ea_dpo.yaml 逐字段相同，只有最后的 ea_* 块不同（这里直接关闭）。
 # 这样两组的差异只可能来自 EA-DPO 本身，而不是数据顺序、步数、学习率或评测集。
 # =============================================================================
 model_name_or_path: Qwen/Qwen2.5-3B-Instruct
-dataset_name: data/uf-20pct
+dataset_name: data/uf-subset
 attn_implementation: sdpa
 dtype: bfloat16
 bf16: true
@@ -21,28 +21,31 @@ learning_rate: 1.0e-5
 beta: 0.1
 per_device_train_batch_size: 1
 gradient_accumulation_steps: 8
-warmup_ratio: 0.03
+warmup_steps: 100
 max_length: 1024
-max_steps: 1500
+max_steps: -1
 num_train_epochs: 1
 
 # ---- 日志 / 评测 / 存档 ----
 logging_steps: 5
 eval_strategy: steps
-eval_steps: 250
+eval_steps: 500
 per_device_eval_batch_size: 2
 save_strategy: steps
-save_steps: 250
+save_steps: 500
 save_total_limit: 3
 report_to: tensorboard
 
 # ---- 显存与数据处理 ----
-gradient_checkpointing: true
+# 梯度检查点必须关：EA 的观察器只在 forward 期间临时替换 attn 实现，
+# checkpoint 反向重算时会用回原始 sdpa 路径，两者不一致直接抛 CheckpointError（已在 4090 上复现）。
+# 3B + 24G 不开检查点也放得下（实测约 16-18 GB），而且还省掉一遍注意力统计。
+gradient_checkpointing: false
 disable_dropout: true
 dataset_num_proc: 8
 
 seed: 42
-output_dir: outputs/dpo-3b-20pct
+output_dir: outputs/dpo-3b-run1
 
 # ---- EA-DPO 关闭：走 TRL 原生 sigmoid DPO 路径 ----
 ea_dpo_enabled: false

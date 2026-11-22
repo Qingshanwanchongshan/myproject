@@ -14,11 +14,11 @@
 
 | 文件 | 作用 |
 |---|---|
-| `configs/ea_dpo.yaml` | 第一轮 EA-DPO：20% 数据、1500 步、4090 单卡 |
+| `configs/ea_dpo.yaml` | 第一轮 EA-DPO：50% 数据（30500 对）、约 3813 步、单卡 |
 | `configs/dpo_baseline.yaml` | 第一轮对照：与上一行**逐字段相同**，只有 `ea_*` 不同 |
 | `configs/ea_dpo_full.yaml` / `dpo_baseline_full.yaml` | 第二轮全量 1 epoch（7642 步） |
 | `scripts/setup_env.sh` | 装 torch/trl/transformers → 校验 trl 来源 → 跑自检与 33 个单测 → 报告 GPU/bf16/磁盘 |
-| `scripts/prepare_data.py` | 落盘 `data/uf-20pct`（12000 对）与 `data/uf-full`，两者共用同一批 512 条评测样本 |
+| `scripts/prepare_data.py` | 落盘 `data/uf-subset`（30500 对）与 `data/uf-full`，两者共用同一批 512 条评测样本 |
 | `scripts/run_first_round.sh` | 冒烟 → 测速 → 两组训练 → 汇总，幂等、可续跑，并把配置副本与机器信息写进产物目录 |
 | `scripts/run_full.sh` | 第二轮全量 |
 | `tests/test_tools.py` | 28 个自检用例（无 GPU 可跑）：配置、四个工具、续训解析、脚本与文件卫生 |
@@ -86,7 +86,7 @@ bash scripts/setup_env.sh
 # 2) 数据（幂等，可重复执行）
 export HF_ENDPOINT=https://hf-mirror.com      # 脚本里已默认设置
 python scripts/prepare_data.py                # 约 2-5 分钟，含 3B 之外的 200MB 数据下载
-#    --skip-full  只生成第一轮需要的 20% 数据
+#    --skip-full  只生成第一轮需要的数据（30500 对）
 #    --force      重新生成
 
 # 3) 第一轮：冒烟 → 测速 → 两组训练 → 对比
@@ -115,8 +115,8 @@ LR=5.0e-6 TAG=lr5e-6 bash scripts/run_first_round.sh
 | 阶段 | 步数 | 预计 |
 |---|---|---|
 | 冒烟（两组） | 10 + 10 | < 10 分钟（含首次下载 3B 模型约 6 GB） |
-| 第一轮一组 | 1500 | 3.5-4.5 小时（+ 6 次评测约 20 分钟） |
-| 第一轮两组 | 3000 | 7-9 小时 |
+| 第一轮一组 | 3813 | 8-11 小时（+ 8 次评测约 30 分钟） |
+| 第一轮两组 | 7626 | 17-22 小时 |
 | 同口径离线评测 | 256 对 × 2 adapter | 6-8 分钟（`report` 阶段自动跑） |
 | 第二轮一组 | 7642 | 18-22 小时 |
 
@@ -157,7 +157,7 @@ UTF-8 与 LF 行尾、README 里的路径引用是否真实存在、根目录是
 1. YAML 里每个键都是 `DPOConfig / _BaseConfig / ModelConfig / ScriptArguments` 的真实字段
    （`TrlParser` 遇到未知键会拒绝启动，但那是模型开始下载之后才发现）；
 2. 同一轮的对照组与 EA 组**除 `ea_*` 和 `output_dir` 外逐字段相同**（可比性的前提）；
-3. 20% 轮与全量轮的模型/优化器/LoRA/长度设置一致；
+3. 第一轮与全量轮的模型/优化器/LoRA/长度设置一致；
 4. 脚本里传给 `train_dpo.py` 的每个 `--flag` 都真实存在。
 
 冒烟阶段会自动核对三件事（都从 `trainer_state.json` 读，不依赖控制台打印了什么）：
@@ -175,8 +175,8 @@ UTF-8 与 LF 行尾、README 里的路径引用是否真实存在、根目录是
 ## 7. 数据量与训练长度
 
 ultrafeedback_binarized 全量约 61135 对偏好数据，`per_device_train_batch_size 1 ×
-gradient_accumulation_steps 8` 下 **7642 步 = 1 epoch**。第一轮的 `data/uf-20pct` 取前 12000 对，
-1500 步正好一轮。
+gradient_accumulation_steps 8` 下 **7642 步 = 1 epoch**。第一轮的 `data/uf-subset` 取前 30500 对，
+约 3813 步正好一轮。
 
 三种改法都只动命令行，不动代码：
 

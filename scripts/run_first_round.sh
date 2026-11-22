@@ -10,7 +10,7 @@
 #   bash scripts/run_first_round.sh report       # 只汇总已有结果
 #
 # 环境变量
-#   STEPS=1500      训练步数（1500 = 数据子集的一个 epoch，约 12000 对）
+#   STEPS=            训练步数；留空 = 用配置里的 max_steps（-1 → 跑满子集一个 epoch，约 3813 步 = 30500 对）
 #   PYTHON=python   解释器
 #   LR / TAG        学习率对照组：LR=5.0e-6 TAG=lr5e-6 bash scripts/run_first_round.sh
 #                   （设了 LR 就必须设 TAG，否则会覆盖主实验的 output_dir）
@@ -24,7 +24,8 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 
 PY="${PYTHON:-python}"
-STEPS="${STEPS:-1500}"
+STEPS="${STEPS:-}"                                 # 空 = 交给配置（max_steps: -1 + num_train_epochs: 1）
+EFF_STEPS="${STEPS:--1}"                          # 实际传给 --max_steps 的值
 STAGE="${1:-all}"
 LR="${LR:-}"
 TAG="${TAG:-}"
@@ -35,8 +36,9 @@ if [ -n "$LR" ] && [ -z "$TAG" ]; then
 fi
 EA_CFG="configs/ea_dpo.yaml"
 DPO_CFG="configs/dpo_baseline.yaml"
-EA_OUT="outputs/ea-3b-20pct${TAG:+-$TAG}"
-DPO_OUT="outputs/dpo-3b-20pct${TAG:+-$TAG}"
+PLAN_STEPS="${PLAN_STEPS:-3813}"                    # 仅用于测速换算：30500 对 / 8
+EA_OUT="outputs/ea-3b-run1${TAG:+-$TAG}"
+DPO_OUT="outputs/dpo-3b-run1${TAG:+-$TAG}"
 # 国内下载默认走镜像。想直连官方：export HF_ENDPOINT=https://huggingface.co
 if [ -z "${HF_ENDPOINT-}" ]; then
   export HF_ENDPOINT="https://hf-mirror.com"
@@ -80,8 +82,8 @@ if free / 2**30 < 18:
           "如果开机后一直是这个数值，先确认没有别的进程占卡")
 PY
 
-  [ -f data/uf-20pct/dataset_dict.json ] \
-    || die "缺少 data/uf-20pct，先执行：python scripts/prepare_data.py"
+  [ -f data/uf-subset/dataset_dict.json ] \
+    || die "缺少 data/uf-subset，先执行：python scripts/prepare_data.py"
 
   "$PY" tools/check_configs.py || die "配置检查未通过"
 
@@ -118,16 +120,26 @@ smoke() {
   echo "[ok] 权重均值恒为 1（公式 (10) 的保均值约束）"
 
   # 目标层：Qwen2.5-3B 有 36 层，自动选择 ceil(0.8*36)-1 = 28（第 29 层）
-  local layer
-  layer=$(grep -o 'zero-based layer [0-9]*' logs/smoke-ea.log | head -n1 | grep -o '[0-9]*$' || true)
-  if [ -z "$layer" ]; then
-    echo "[warn] 日志里没找到目标层信息，手工确认：grep 'EA-DPO enabled' logs/smoke-ea.log"
-  elif [ "$layer" = "28" ]; then
-    echo "[ok] EA-DPO 目标层 = 28（第 29 层，约为 80% 深度）"
-  else
-    echo "[warn] EA-DPO 目标层 = $layer，与 3B 的预期值 28 不同。"
-    echo "       如果你换了模型，这是正常的；否则请检查 model_name_or_path"
-  fi
+  # 从 trainer_state.json 读（日志文本不一定打这行，指标才是权威）
+  "$PY" - outputs/smoke-ea <<'PY' || die "读不到 ea/target_layer，说明 EA 没真正启用"
+import glob
+import json
+import sys
+
+paths = sorted(glob.glob(sys.argv[1] + "/checkpoint-*/trainer_state.json"))
+if not paths:
+    print("[fail] 找不到 trainer_state.json")
+    sys.exit(1)
+rows = json.load(open(paths[-1], encoding="utf-8"))["log_history"]
+values = [row["ea/target_layer"] for row in rows if "ea/target_layer" in row]
+if not values:
+    print("[fail] 日志里没有 ea/target_layer，EA-DPO 可能没启用")
+    sys.exit(1)
+layer = int(values[-1])
+print(f"[ok] EA-DPO 目标层 = {layer}（零起始；3B 期望 28 = 第 29 层，约 80% 深度）")
+if layer != 28:
+    print(f"[warn] 3B 预期是 28，实际是 {layer}；换了模型才正常，否则检查 model_name_or_path")
+PY
 
   echo "--- 标准 DPO ---"
   "$PY" train_dpo.py --config "$DPO_CFG" --max_steps 10 --eval_strategy no \
@@ -166,8 +178,8 @@ timing() {
   "$PY" train_dpo.py --config "$EA_CFG" --max_steps 40 --eval_strategy no --save_strategy no \
     --logging_steps 10 --report_to none --output_dir outputs/timing-ea 2>&1 | tee logs/timing-ea.log
 
-  "$PY" tools/estimate_time.py logs/timing-ea.log --steps "$STEPS" --measured-steps 40 \
-    --eval-every 250 || echo "[warn] 没能从日志里解析出速度，请手工看 logs/timing-ea.log 末尾的 Train metrics"
+  "$PY" tools/estimate_time.py logs/timing-ea.log --steps "${STEPS:-$PLAN_STEPS}" --measured-steps 40 \
+    --eval-every 500 || echo "[warn] 没能从日志里解析出速度，请手工看 logs/timing-ea.log 末尾的 Train metrics"
   rm -rf outputs/timing-ea
 }
 
@@ -186,7 +198,7 @@ record_run_env() {
     echo "torch    : $("$PY" -c 'import torch;print(torch.__version__, torch.version.cuda)' 2>/dev/null || echo 'n/a')"
     echo "gpu      : $(nvidia-smi --query-gpu=name,memory.total,driver_version --format=csv,noheader 2>/dev/null | head -n1)"
     echo "config   : $2"
-    echo "steps    : $STEPS"
+    echo "steps    : ${STEPS:-(from config)}"
     echo "lr       : ${LR:-from-config}"
     echo "tag      : ${TAG:-none}"
     echo "script   : $0 $STAGE"
@@ -205,10 +217,10 @@ train_one() {
   fi
   record_run_env "$out" "$cfg"
   if [ -n "$LR" ]; then
-    "$PY" train_dpo.py --config "$cfg" --max_steps "$STEPS" --learning_rate "$LR" \
+    "$PY" train_dpo.py --config "$cfg" --max_steps "$EFF_STEPS" --learning_rate "$LR" \
       --resume_from_checkpoint auto 2>&1 | tee "$log"
   else
-    "$PY" train_dpo.py --config "$cfg" --max_steps "$STEPS" \
+    "$PY" train_dpo.py --config "$cfg" --max_steps "$EFF_STEPS" \
       --resume_from_checkpoint auto 2>&1 | tee "$log"
   fi
   echo "[ok] $name 完成，产物在 $out"
@@ -235,7 +247,7 @@ report() {
   if [ -f "$DPO_OUT/adapter_config.json" ] && [ -f "$EA_OUT/adapter_config.json" ]; then
     banner "同口径离线评测（标准 DPO 隐式奖励，可横向比）"
     "$PY" tools/eval_implicit_reward.py \
-      --adapter "$DPO_OUT:DPO" --adapter "$EA_OUT:EA-DPO" --limit 256 \
+      --adapter "$DPO_OUT:DPO" --adapter "$EA_OUT:EA-DPO" --limit 0 \
       --out "outputs/implicit-reward${TAG:+-$TAG}.json" \
       || echo "[warn] 离线评测失败，可单独重跑：python tools/eval_implicit_reward.py --adapter $DPO_OUT:DPO --adapter $EA_OUT:EA-DPO"
   else

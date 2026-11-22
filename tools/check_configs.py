@@ -59,7 +59,6 @@ TRAINING_ARGUMENT_FIELDS = {
     "save_strategy",
     "save_total_limit",
     "seed",
-    "warmup_ratio",
     "warmup_steps",
 }
 
@@ -83,7 +82,7 @@ CROSS_ROUND_SAME = [
     "beta",
     "per_device_train_batch_size",
     "gradient_accumulation_steps",
-    "warmup_ratio",
+    "warmup_steps",
     "max_length",
     "per_device_eval_batch_size",
     "gradient_checkpointing",

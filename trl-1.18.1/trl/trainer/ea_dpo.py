@@ -87,23 +87,45 @@ def token_weights(
     gamma,
     cap_quantile,
     epsilon,
+    top_fraction=1.0,
+    return_details=False,
 ):
     """Eqs. (3), (7)-(10), with rows ordered [chosen, rejected].
 
     Returns detached FP32 weights, zero outside valid completion tokens.
     Each non-empty completion has mean weight one. At lambda=1 weights are
     non-negative, not necessarily strictly positive in floating point.
+    With return_details, also return normalized entropy, normalized credit,
+    information, and softmax probabilities for diagnostics.
+    top_fraction keeps ceil(fraction * completion_length) tokens ranked by
+    information, with stable input-order tie breaking. Selected weights are
+    rescaled to sum to the original completion length.
     """
     if entropy.shape != credit.shape or entropy.shape != mask.shape or entropy.shape[0] % 2:
         raise ValueError("EA-DPO expects equally shaped [2*batch, tokens] signals in chosen/rejected order.")
+    if not 0 < top_fraction <= 1:
+        raise ValueError("EA-DPO top_fraction must be in (0, 1].")
     valid = mask.bool()
     lengths = valid.sum(-1, keepdim=True)
     if (lengths == 0).any():
         raise ValueError("Empty completions after truncation cannot be used for EA-DPO.")
     h = entropy.detach().float().masked_fill(~valid, 0.0)
     c = credit.detach().float().masked_fill(~valid, 0.0)
-    if not torch.isfinite(h).all() or not torch.isfinite(c).all() or (h < 0).any() or (c < 0).any():
-        raise ValueError("EA-DPO entropy and causal credit must be finite and non-negative.")
+    if not torch.isfinite(h).all() or not torch.isfinite(c).all():
+        raise ValueError(
+            f"EA-DPO entropy and causal credit must be finite "
+            f"(nan entropy={int(torch.isnan(h).sum())}, nan credit={int(torch.isnan(c).sum())})."
+        )
+    # 熵数学上非负，但 bf16 下 fused LM head 用 -(p log p) 求和时会溢出成
+    # 约 -1e-3 量级的负舍入（真实熵越接近 0 越明显）。这不是错误，clamp 到 0 即可；
+    # 只有明显越界（<-0.01）才说明真的算错了，仍然报错。
+    if h.min() < -0.01 or c.min() < -0.01:
+        raise ValueError(
+            f"EA-DPO signals unexpectedly negative beyond rounding: "
+            f"min entropy={float(h.min()):.3e}, min credit={float(c.min()):.3e}."
+        )
+    h = h.clamp_min(0.0)
+    c = c.clamp_min(0.0)
     half = h.shape[0] // 2
     for row in range(half, h.shape[0]):
         cap = torch.quantile(h[row, valid[row]], cap_quantile)
@@ -115,7 +137,17 @@ def token_weights(
     information = h + kappa * c + gamma * h * c
     probabilities = (information / tau).masked_fill(~valid, -torch.inf).softmax(-1)
     weights = (1 - redistribution) + redistribution * lengths * probabilities
-    return weights.masked_fill(~valid, 0.0)
+    weights = weights.masked_fill(~valid, 0.0)
+    if top_fraction < 1:
+        # FP32 can round 210 * 0.3 above 63 and retain an extra token.
+        counts = (lengths.double() * top_fraction).ceil().long().clamp_min(1)
+        order = information.masked_fill(~valid, -torch.inf).argsort(dim=-1, descending=True, stable=True)
+        selected = valid & (order.argsort(dim=-1) < counts)
+        weights = weights.masked_fill(~selected, 0.0)
+        weights = weights * (lengths / weights.sum(-1, keepdim=True))
+    if return_details:
+        return weights, (h, c, information, probabilities)
+    return weights
 
 
 def select_attention(model, target_layer):

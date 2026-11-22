@@ -1,6 +1,5 @@
 # 统一行尾：仓库内一律存 LF，避免 Windows/服务器之间反复出现 CRLF 差异
 * text=auto eol=lf
-
 # 明确二进制，避免被当作文本转换
 *.png  binary
 *.jpg  binary
@@ -12,3 +11,4 @@
 *.pt   binary
 *.pth  binary
 *.safetensors binary
+migration/assets/** filter=lfs diff=lfs merge=lfs -text

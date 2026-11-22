@@ -42,7 +42,8 @@ EOS 若属于 TRL 处理后的 completion，会作为有效 Token 计入；不�
 | 参数 | 默认值 | 含义 |
 |---|---:|---|
 | `ea_dpo_enabled` | false | EA-DPO 开关 |
-| `ea_lambda` | 0.5 | 重分配强度；0 直接走原始 DPO 计算路径 |
+| `ea_lambda` | 0.5 | 重分配强度；保留全部 token 时，0 退化为标准 DPO |
+| `ea_top_fraction` | 1.0 | 每条回答按 EA 信息分数保留的 token 比例 |
 | `ea_tau_chosen` | 1.0 | chosen 温度 |
 | `ea_tau_rejected` | 0.7 | rejected 温度，必须不大于 chosen |
 | `ea_kappa_chosen` | 1.0 | chosen 因果主效应系数 |
@@ -55,6 +56,13 @@ EOS 若属于 TRL 处理后的 completion，会作为有效 Token 计入；不�
 | `ea_epsilon` | 1e-8 | 均值归一化常数 |
 
 `ea/weight_mean_chosen` 和 `ea/weight_mean_rejected` 应接近 1；`ea/weight_max_*` 记录每序列最大权重的跨样本均值；`ea/target_layer` 记录实际层号。原有奖励和 log-prob 日志在启用 EA-DPO 时对应加权后的数值。
+
+设置 `ea_top_fraction: 0.3` 可运行稀疏加权变体。每条 chosen/rejected 回答独立保留信息分数最高的
+`ceil(0.3 * T)` 个有效 completion token，同分按输入位置稳定排序。其余位置的直接 log-prob
+损失权重为零，完整回答仍作为上下文参与前向计算。选中权重重新缩放至总和 T，策略和参考使用同一组
+停止梯度的权重。保留比例为 1 时沿用完整 EA-DPO，且 lambda=0 时严格退化为标准 DPO。
+保留比例小于 1 时，lambda=0 仍会执行稀疏选择。日志中的 `ea/selected_fraction_*` 记录实际比例，
+短回答的比例会因向上取整而超过设定值。这一变体仍计算完整序列的熵与注意力统计。
 
 ## 支持范围与实际计算代价
 

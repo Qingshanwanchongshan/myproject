@@ -1,11 +1,13 @@
 # EA-DPO
 
+新服务器迁移入口：[migration/START_HERE.txt](migration/START_HERE.txt)。包含与旧服务器一致的核心实现、环境版本及下一轮配置；数据集、历史 LoRA 权重和实验结果通过 Git LFS 提供；克隆后执行 `git lfs pull` 和 `python migration/restore_assets.py`。公开基础模型需另行下载。
+
 [![License: Apache-2.0](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
 [![Python 3.11+](https://img.shields.io/badge/python-3.11%2B-blue.svg)](requirements.txt)
 [![TRL 1.18.1](https://img.shields.io/badge/TRL-1.18.1-orange.svg)](trl-1.18.1)
 
 在 DPO 损失里引入 **Token 级熵 + 注意力因果入度加权** 的偏好优化实现，基于 **TRL v1.18.1** 的修改版。
-仓库自带一套可直接在单卡 4090 上跑完的实验流程：第一轮用 20% 数据看趋势，第二轮再上全量。
+仓库自带一套可直接在单卡 4090 上跑完的实验流程：第一轮用 50% 数据看趋势，第二轮再上全量。
 
 > 研究代码，尚未发表。所有超参数都是**可跑通的起点，不是调参结论**。
 
@@ -21,13 +23,13 @@
 ├── tests/
 │   └── test_tools.py            # 自检：配置检查器、四个工具、续训解析、脚本卫生（约 20 个用例）
 ├── configs/
-│   ├── ea_dpo.yaml              # 第一轮 EA-DPO（20% 数据，1500 步）
+│   ├── ea_dpo.yaml              # 第一轮 EA-DPO（50% 数据，约 3813 步）
 │   ├── dpo_baseline.yaml        # 第一轮标准 DPO 对照（除 ea_* 外逐字段相同）
 │   ├── ea_dpo_full.yaml         # 第二轮 EA-DPO（全量 1 epoch）
 │   └── dpo_baseline_full.yaml   # 第二轮标准 DPO 对照
 ├── scripts/
 │   ├── setup_env.sh             # 一次性环境准备（torch / trl / 校验 / 单测 / 自检）
-│   ├── prepare_data.py          # 落盘固定数据集：12000 对训练集 + 512 对固定评测集
+│   ├── prepare_data.py          # 落盘固定数据集：30500 对训练集 + 512 对固定评测集
 │   ├── run_first_round.sh       # 第一轮全流程：冒烟 → 测速 → 两组训练 → 汇总
 │   └── run_full.sh              # 第二轮全量
 ├── tools/
@@ -69,8 +71,8 @@ python tools/check_configs.py       # 配置字段 / 两组可比性 / 脚本参
 
 ```bash
 bash scripts/setup_env.sh          # 装 torch/trl/transformers，跑 33 个单测，检查 GPU 与 bf16
-python scripts/prepare_data.py     # 生成 data/uf-20pct（12000 对）与 data/uf-full
-bash scripts/run_first_round.sh    # 冒烟 → 测速 → 两组各 1500 步 → 出对比表
+python scripts/prepare_data.py     # 生成 data/uf-subset（30500 对）与 data/uf-full
+bash scripts/run_first_round.sh    # 冒烟 → 测速 → 两组各约 3813 步 → 出对比表
 ```
 
 `run_first_round.sh` 是幂等的：某组跑完后再执行会跳过；训练中断后重跑会
@@ -93,20 +95,20 @@ python train_dpo.py --config configs/ea_dpo.yaml --resume_from_checkpoint auto
 
 ## 3. 第一轮的关键设置，以及为什么
 
-第一轮 = 20% 数据、1500 步，目标是**看趋势是否分叉**，不是出结论。
+第一轮 = 全量数据的 50%（30500 对）、约 3813 步，目标是**看趋势是否分叉**，不是出结论。改数据量只改 `prepare_data.py --train-size`，配置里是 `max_steps: -1`，步数会自动跟着变。
 
 | 设置 | 值 | 为什么 |
 |---|---|---|
 | 模型 | Qwen2.5-3B-Instruct | 3B 是第一个真实规模；bf16 LoRA 预计占 11-14 GiB（以 `timing` 阶段实测为准） |
-| 数据 | `data/uf-20pct`，train 12000 对 / test 512 对 | 12000 是全量的 19.6%；**两组共用同一份落盘数据**，样本顺序完全一致 |
+| 数据 | `data/uf-subset`，train 30500 对 / test 512 对 | 30500 是全量的 50%；**两组共用同一份落盘数据**，样本顺序完全一致 |
 | 评测集 | 512 对固定子集 | 全量 test 约 2000 对，一次评测要 12-15 分钟，15 次就是 3-4 小时；512 对 3-4 分钟就够看趋势 |
-| 步数 | 1500 = 12000 / 8 | 正好是这个子集的一个 epoch |
+| 步数 | 3813 = 30500 / 8 | 正好是这个子集的一个 epoch（配置里 `max_steps: -1` 自动算） |
 | batch | 1 × 8 = 有效 8 对 | 24G 卡上留足显存余量；两组一致就不影响可比性 |
 | 学习率 | 1.0e-5，线性衰减，3% warmup | all-linear LoRA 的常用量级。对照组：`LR=5.0e-6 TAG=lr5e-6 bash scripts/run_first_round.sh` |
 | β | 0.1（显式写入） | DPO 标准值；写进配置是为了复现，不靠默认值 |
 | LoRA | r=16, α=32, `all-linear` | α/r=2；显式用 all-linear 而不是 peft 的 q/v 默认映射，是为了让两种方法都有足够容量把差异表现出来（容量太窄会把方法差异一起压平） |
 | 长度 | max_length 1024 | TRL 的 DPO 惯例；超长样本被截断，prompt 就占满长度的样本会被训练器丢弃，不会报错 |
-| 评测/存档 | 每 250 步，保留 3 个 | 1500 步拿到 6 个评测点，曲线够密；checkpoint 留给事后分析 |
+| 评测/存档 | 每 500 步，保留 3 个 | 3813 步拿到 8 个评测点；一次评测约 3-4 分钟，总开销约半小时 |
 | 梯度检查点 | 显式 true | TRL 本来默认就是 true，写出来是因为它会**让反向重算前向**，EA 的注意力统计因此每步算两遍（成本可接受，但要知道） |
 | 日志 | `report_to: tensorboard` | 出曲线；没装 tensorboard 时会自动跳过，不会让训练失败 |
 | 随机种子 | 两组都 42 | 唯一的变量只剩 `ea_*` |

@@ -1,0 +1,53 @@
+New-server migration (2026-11-22)
+
+This repository contains runtime code and, via Git LFS, exact prepared datasets,
+historical LoRA adapters, generated answers and experiment records. It does not
+contain full base weights, optimizer states, SSH credentials or API keys.
+Do not transfer files over the new server FRP channel. Use only administrator-
+approved outbound download channels. Git clone alone does not supply model/data.
+
+1. Clone and enter this repository. Git LFS is REQUIRED (approved GitHub access):
+   git clone https://github.com/Qingshanwanchongshan/myproject.git
+   cd myproject
+   git lfs install --local
+   git lfs pull
+   python3.12 migration/restore_assets.py
+   Full clone/LFS assets require about 4.9 GB of download; restoration copies
+   adapters and datasets again, so allow at least 20 GB disk plus base model.
+   If git-lfs is unavailable, ask the administrator for an approved installation.
+   Use Python 3.12 in an isolated environment.
+   python3.12 -m venv .venv
+   source .venv/bin/activate
+   python -m pip install --upgrade pip
+2. Install GPU PyTorch appropriate for the new driver. The old server used
+   torch 2.8.0+cu128. If the new driver supports it:
+   python -m pip install torch==2.8.0 --index-url https://download.pytorch.org/whl/cu128
+   python -m pip install -r requirements.txt -r migration/requirements-runtime.txt
+   python -m pip install -e './trl-1.18.1[peft]'
+   python -c "import torch; print(torch.__version__, torch.cuda.is_available())"
+3. Data: restore_assets.py restores the EXACT historical ./data/uf-subset and
+   ./data/uf-full. Do not regenerate these splits for the primary comparison.
+4. Model: the YAMLs use the public Qwen/Qwen2.5-3B-Instruct Hub identifier.
+   Download is required before/on first use, through an approved channel.
+   Alternatively set model_name_or_path to the local complete model directory.
+   migration/base-model-fingerprints.json records the historical base shard hashes.
+5. Check:
+   python -m pytest tests/ -q
+   python tools/check_configs.py
+   python train_dpo.py --config migration/lr-5e6.yaml --max_steps 2 --output_dir outputs/smoke-next --report_to none
+   Run smoke separately; do not resume this two-step checkpoint for the real run.
+6. Start a NEW run only after checking GPU memory and dataset identity:
+   python train_dpo.py --config migration/lr-5e6.yaml
+   Other configs: tau-rejected-20, kappa-control-15, anchor (existing-reference config).
+   No automatic training launcher is enabled. One GPU is not true parallel
+   training capacity for multiple full jobs; schedule according to available GPUs.
+
+All four configs share seed 42, layer index 30 (human layer 31), lambda 0.1,
+3753-step schedule, batch 1 with accumulation 8. Each candidate changes one
+parameter from anchor. They retain the complete EA mechanism and all tokens.
+Save every 500 steps; keep intermediate checkpoints for generation review.
+Do not use loss/margin alone to pick the final model. Historical adapter backups
+are required to generate additional outputs from old models; they are now in LFS.
+Historical adapter_config.json retains the original base-model path: explicitly
+load the new local/public base model when evaluating, rather than that old path.
+These are proposed next-run configurations, not claims of improved performance.

@@ -364,6 +364,10 @@ class DPOConfig(_BaseConfig):
     # EA-DPO: defaults are starting points for experiments, not tuned results.
     ea_dpo_enabled: bool = field(default=False, metadata={"help": "Enable entropy-attention weighted DPO."})
     ea_lambda: float = field(default=0.5, metadata={"help": "Token redistribution strength in [0, 1]."})
+    ea_top_fraction: float = field(
+        default=1.0,
+        metadata={"help": "Fraction of completion tokens retained by EA score, in (0, 1]; 1 keeps all tokens."},
+    )
     ea_tau_chosen: float = field(default=1.0, metadata={"help": "Chosen information-score temperature."})
     ea_tau_rejected: float = field(default=0.7, metadata={"help": "Rejected temperature, <= ea_tau_chosen."})
     ea_kappa_chosen: float = field(default=1.0, metadata={"help": "Chosen causal-credit main-effect coefficient."})
@@ -391,6 +395,7 @@ class DPOConfig(_BaseConfig):
         if self.ea_dpo_enabled:
             values = (
                 self.ea_lambda,
+                self.ea_top_fraction,
                 self.ea_tau_chosen,
                 self.ea_tau_rejected,
                 self.ea_kappa_chosen,
@@ -402,6 +407,8 @@ class DPOConfig(_BaseConfig):
             )
             if not all(math.isfinite(v) for v in values):
                 raise ValueError("EA-DPO hyperparameters must be finite.")
+            if not 0 < self.ea_top_fraction <= 1:
+                raise ValueError("EA-DPO requires ea_top_fraction in (0, 1].")
             if not 0 <= self.ea_lambda <= 1 or not 0 < self.ea_tau_rejected <= self.ea_tau_chosen:
                 raise ValueError("EA-DPO requires 0 <= lambda <= 1 and 0 < tau_rejected <= tau_chosen.")
             if not 0 <= self.ea_kappa_chosen <= self.ea_kappa_rejected or self.ea_gamma < 0:

@@ -93,7 +93,8 @@ def tokenizer_and_data():
     return tokenizer, data
 
 
-def trainer_at(path, *, enabled=True, redistribution=0.5, lora=False, checkpointing=False, backend="eager"):
+def trainer_at(path, *, enabled=True, redistribution=0.5, top_fraction=1.0,
+               lora=False, checkpointing=False, backend="eager"):
     torch.manual_seed(12)
     model = tiny_model(backend=backend)
     reference = copy.deepcopy(model)
@@ -115,6 +116,7 @@ def trainer_at(path, *, enabled=True, redistribution=0.5, lora=False, checkpoint
         gradient_checkpointing=checkpointing,
         ea_dpo_enabled=enabled,
         ea_lambda=redistribution,
+        ea_top_fraction=top_fraction,
         ea_attention_chunk_size=2,
         disable_tqdm=True,
         learning_rate=1e-3,
@@ -169,11 +171,19 @@ def test_weights_equations_fold_mask_budget_and_stop_gradient():
     c = torch.tensor([[1.0, 0.5, 0.0, 777.0], [1.0, 0.5, 0.0, 777.0]], requires_grad=True)
     mask = torch.tensor([[1, 1, 1, 0], [1, 1, 1, 0]])
     weights = token_weights(h, c, mask, **weight_options(cap_quantile=0.5))
+    probed_weights, (probed_h, probed_c, info, probabilities) = token_weights(
+        h, c, mask, return_details=True, **weight_options(cap_quantile=0.5)
+    )
+    torch.testing.assert_close(probed_weights, weights, rtol=0, atol=0)
     # Rejected median=2: entropy 9 folds to zero; chosen entropy is unchanged.
     for row, folded, tau in [(0, torch.tensor([1.0, 2.0, 9.0]), 1.0), (1, torch.tensor([1.0, 2.0, 0.0]), 0.7)]:
         hn = folded / (folded.mean() + 1e-8)
         cn = c[row, :3].detach() / (c[row, :3].detach().mean() + 1e-8)
         expected = 0.5 + 0.5 * 3 * ((hn + cn + hn * cn) / tau).softmax(-1)
+        torch.testing.assert_close(probed_h[row, :3], hn)
+        torch.testing.assert_close(probed_c[row, :3], cn)
+        torch.testing.assert_close(info[row, :3], hn + cn + hn * cn)
+        torch.testing.assert_close(probabilities[row, :3], ((hn + cn + hn * cn) / tau).softmax(-1))
         torch.testing.assert_close(weights[row, :3], expected)
     torch.testing.assert_close(weights.sum(-1), torch.tensor([3.0, 3.0]))
     assert not weights.requires_grad and torch.count_nonzero(weights[:, 3]) == 0
@@ -183,6 +193,74 @@ def test_weights_equations_fold_mask_budget_and_stop_gradient():
     torch.testing.assert_close(single, torch.ones(2, 1))
     with pytest.raises(ValueError, match="Empty"):
         token_weights(h, c, torch.zeros_like(mask), **weight_options())
+
+
+def test_tolerates_bf16_rounding_in_entropy():
+    # 真实训练里熵来自 fused LM head 的 bf16 -(p log p) 求和，极低熵位置会溢出成
+    # -1e-3 量级的负数（4090 上跑到 step ~1820 时就这么崩过一次）。这是舍入不是错误。
+    h = torch.tensor([[-3e-3, 1.0, 2.0], [-3e-3, 1.0, 2.0]], dtype=torch.bfloat16)
+    c = torch.tensor([[0.0, 0.5, 1.0], [0.0, 0.5, 1.0]], dtype=torch.bfloat16)
+    mask = torch.ones(2, 3, dtype=torch.long)
+    weights = token_weights(h, c, mask, **weight_options())
+    assert torch.isfinite(weights).all() and (weights >= 0).all()
+    torch.testing.assert_close(weights.sum(-1), torch.tensor([3.0, 3.0]))
+
+    # 明显越界的负值 / NaN 仍然必须报错
+    bad = torch.tensor([[-0.5, 1.0, 2.0], [-0.5, 1.0, 2.0]])
+    with pytest.raises(ValueError, match="negative"):
+        token_weights(bad, c.float(), mask, **weight_options())
+    nan = torch.tensor([[float("nan"), 1.0, 2.0], [float("nan"), 1.0, 2.0]])
+    with pytest.raises(ValueError, match="finite"):
+        token_weights(nan, c.float(), mask, **weight_options())
+
+
+@pytest.mark.parametrize("length", [1, 2, 7, 10, 210, 500])
+def test_top_fraction_selects_scores_preserves_budget_and_masks_gradients(length):
+    width = length + 3
+    entropy = torch.ones(2, width)
+    credit = torch.arange(width, 0, -1).float().repeat(2, 1)
+    mask = torch.zeros(2, width, dtype=torch.long)
+    mask[:, :length] = 1
+    weights = token_weights(
+        entropy, credit, mask, **weight_options(top_fraction=0.3, gamma=0.0)
+    )
+    count = math.ceil(length * 0.3)
+    assert (weights > 0).sum(1).tolist() == [count, count]
+    assert (weights[:, :count] > 0).all()
+    assert torch.count_nonzero(weights[:, count:]) == 0
+    torch.testing.assert_close(weights.sum(1), torch.full((2,), float(length)))
+    logps = torch.zeros(2, width, requires_grad=True)
+    chosen, rejected = (weights * logps).sum(1)
+    (-F.logsigmoid(chosen - rejected)).backward()
+    assert torch.count_nonzero(logps.grad[:, count:]) == 0
+    assert (logps.grad[:, :count] != 0).all()
+
+
+def test_top_fraction_ties_are_deterministic():
+    mask = torch.ones(2, 10, dtype=torch.long)
+    weights = token_weights(
+        torch.ones(2, 10), torch.zeros(2, 10), mask,
+        **weight_options(top_fraction=0.3),
+    )
+    torch.testing.assert_close(weights[:, :3], torch.full((2, 3), 10 / 3))
+    assert torch.count_nonzero(weights[:, 3:]) == 0
+
+
+def test_evaluation_metrics_are_invariant_to_partial_batches(tmp_path):
+    trainer = trainer_at(tmp_path)
+    _, data = tokenizer_and_data()
+    data = data.select([0, 1, 0])
+    trainer.args.per_device_eval_batch_size = 1
+    individual = trainer.evaluate(eval_dataset=data)
+    trainer.args.per_device_eval_batch_size = 2
+    batched = trainer.evaluate(eval_dataset=data)
+    for metric in (
+        "rewards/accuracies", "rewards/chosen", "rewards/rejected", "rewards/margins",
+        "logps/chosen", "logps/rejected", "entropy", "mean_token_accuracy",
+        "logits/chosen", "logits/rejected",
+    ):
+        key = f"eval_{metric}"
+        assert batched[key] == pytest.approx(individual[key], abs=1e-5), key
 
 
 @pytest.mark.parametrize("family", ["llama", "qwen2", "qwen3"])
@@ -226,8 +304,9 @@ def test_observer_preserves_model_and_matches_dense_oracle(family, backend):
     assert set(ALL_ATTENTION_FUNCTIONS) == registry
 
 
-def test_trainer_loss_and_gradients_match_equation_12(tmp_path):
-    trainer = trainer_at(tmp_path)
+@pytest.mark.parametrize("top_fraction,redistribution", [(1.0, 0.5), (0.3, 0.5), (0.3, 0.0)])
+def test_trainer_loss_and_gradients_match_equation_12(tmp_path, top_fraction, redistribution):
+    trainer = trainer_at(tmp_path, top_fraction=top_fraction, redistribution=redistribution)
     batch = next(iter(trainer.get_train_dataloader()))
     model = trainer.model
     layer = trainer._ea_attention
@@ -247,7 +326,10 @@ def test_trainer_loss_and_gradients_match_equation_12(tmp_path):
     log_dist = logits.log_softmax(-1)
     entropy = -(log_dist.exp() * log_dist).sum(-1)
     credit = dense_credit(output.attentions[trainer._ea_layer_index], captured[0], batch["completion_mask"])
-    weights = token_weights(entropy, credit[:, 1:], mask, **weight_options())
+    weights = token_weights(
+        entropy, credit[:, 1:], mask,
+        **weight_options(top_fraction=top_fraction, redistribution=redistribution),
+    )
     labels = batch["input_ids"][:, 1:]
     policy_logps = log_dist.gather(-1, labels.unsqueeze(-1)).squeeze(-1)
     with torch.no_grad():
@@ -306,6 +388,9 @@ def test_two_training_steps_save_and_reload(tmp_path, lora, checkpointing):
     [
         {"ea_lambda": -1},
         {"ea_lambda": float("nan")},
+        {"ea_top_fraction": 0},
+        {"ea_top_fraction": 1.1},
+        {"ea_top_fraction": float("nan")},
         {"ea_tau_rejected": 2},
         {"ea_kappa_rejected": 0.5},
         {"ea_entropy_cap_quantile": 0},

@@ -294,6 +294,35 @@ def test_eval_tool_logged_win_rate(tmp_path):
     (broken / "trainer_state.json").write_text("{not json", encoding="utf-8")
     assert ev.logged_win_rate(broken) is None
 
+    mixed = tmp_path / "mixed"
+    mixed.mkdir()
+    state = mixed / "trainer_state.json"
+    state.write_text(json.dumps({"log_history": [
+        {"step": 100, "eval_rewards/accuracies": 0.7},
+        {"step": 105, "rewards/accuracies": 0.9},
+    ]}), encoding="utf-8")
+    assert ev.logged_win_rate(mixed) == 0.7
+    state.write_text(json.dumps({"log_history": [{"rewards/accuracies": 0.9}]}), encoding="utf-8")
+    assert ev.logged_win_rate(mixed) is None
+
+
+def test_eval_tool_uses_shared_completion_boundary():
+    import eval_implicit_reward as ev
+
+    class BoundaryTokenizer:
+        def apply_chat_template(self, messages, add_generation_prompt=False, tokenize=False):
+            if add_generation_prompt:
+                return [1, 2, 3, 4, 5]
+            if messages[-1]["content"] == "a":
+                return [1, 2, 3, 4, 5, 90]
+            return [1, 2, 3, 4, 99, 91]
+
+    pairs = ev.build_pair(BoundaryTokenizer(), EXAMPLE, max_length=5)
+    assert pairs is not None
+    assert pairs[0][1] == pairs[1][1] == 4
+    assert pairs[0][0] == [1, 2, 3, 4, 5]
+    assert pairs[1][0] == [1, 2, 3, 4, 99]
+
 
 # ---------------------------------------------------------------------------
 # 4. 训练入口的续训解析

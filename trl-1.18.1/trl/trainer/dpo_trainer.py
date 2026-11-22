@@ -1045,6 +1045,7 @@ class DPOTrainer(_BaseTrainer):
 
         # Initialize the metrics
         self._metrics = {"train": defaultdict(list), "eval": defaultdict(list)}
+        self._metric_weights = {"train": defaultdict(list), "eval": defaultdict(list)}
         self._total_train_tokens = 0
 
         # Tensor parallel ranks are given the same batch, so a token count gathered across all processes repeats
@@ -1395,7 +1396,9 @@ class DPOTrainer(_BaseTrainer):
         completion_mask = inputs["completion_mask"]
         shift_completion_mask = completion_mask[..., 1:]
         labels = inputs["input_ids"].masked_fill(completion_mask == 0, -100)
-        ea_active = self.args.ea_dpo_enabled and self.args.ea_lambda != 0
+        ea_active = self.args.ea_dpo_enabled and (
+            self.args.ea_lambda != 0 or self.args.ea_top_fraction < 1
+        )
         if self.args.ea_dpo_enabled:
             first_real_token = inputs["attention_mask"].long().argmax(-1, keepdim=True)
             if completion_mask.gather(1, first_real_token).any() or (shift_completion_mask.sum(-1) == 0).any():
@@ -1430,15 +1433,20 @@ class DPOTrainer(_BaseTrainer):
                 gamma=self.args.ea_gamma,
                 cap_quantile=self.args.ea_entropy_cap_quantile,
                 epsilon=self.args.ea_epsilon,
+                top_fraction=self.args.ea_top_fraction,
             )
             logps = (per_token_logps.float() * ea_weights).sum(dim=1)
             for name, weights, valid in zip(
                 ("chosen", "rejected"), ea_weights.chunk(2), shift_completion_mask.bool().chunk(2), strict=True
             ):
                 mean = weights.sum(-1) / valid.sum(-1)
-                self._metrics[mode][f"ea/weight_mean_{name}"].append(self.accelerator.gather(mean).mean().item())
-                self._metrics[mode][f"ea/weight_max_{name}"].append(
-                    self.accelerator.gather(weights.max(-1).values).mean().item()
+                self._metrics[mode][f"ea/weight_mean_{name}"].extend(self.accelerator.gather(mean).float().tolist())
+                self._metrics[mode][f"ea/weight_max_{name}"].extend(
+                    self.accelerator.gather(weights.max(-1).values).float().tolist()
+                )
+                selected_fraction = ((weights > 0) & valid).sum(-1) / valid.sum(-1)
+                self._metrics[mode][f"ea/selected_fraction_{name}"].extend(
+                    self.accelerator.gather(selected_fraction).float().tolist()
                 )
             self._metrics[mode]["ea/target_layer"].append(float(self._ea_layer_index))
         elif self.ld_alpha is None:
@@ -1701,6 +1709,7 @@ class DPOTrainer(_BaseTrainer):
         total_tokens = self.accelerator.gather_for_metrics(total_tokens).sum()
         entropy = (entropy_sum / total_tokens).item() if total_tokens > 0 else 0.0
         self._metrics[mode]["entropy"].append(entropy)
+        self._metric_weights[mode]["entropy"].append(total_tokens.item())
 
         # Number of tokens
         if mode == "train":
@@ -1723,6 +1732,8 @@ class DPOTrainer(_BaseTrainer):
         avg_rejected_logits = total_rejected_logits / total_rejected_tokens if total_rejected_tokens > 0 else 0.0
         self._metrics[mode]["logits/chosen"].append(avg_chosen_logits)
         self._metrics[mode]["logits/rejected"].append(avg_rejected_logits)
+        self._metric_weights[mode]["logits/chosen"].append(total_chosen_tokens)
+        self._metric_weights[mode]["logits/rejected"].append(total_rejected_tokens)
 
         # Token accuracy for the chosen completions
         chosen_is_top1, _ = outputs.is_top1[:, -seq_len:].chunk(2, dim=0)
@@ -1734,28 +1745,29 @@ class DPOTrainer(_BaseTrainer):
         total_sum = total_tokens.sum()
         accuracy = (correct_tokens.sum() / total_sum).item() if total_sum > 0 else 0.0
         self._metrics[mode]["mean_token_accuracy"].append(accuracy)
+        self._metric_weights[mode]["mean_token_accuracy"].append(total_sum.item())
 
         # Rewards for chosen and rejected completions
         chosen_rewards = self.beta * chosen_logratios.detach()
         rejected_rewards = self.beta * rejected_logratios.detach()
         agg_chosen_rewards = self.accelerator.gather(chosen_rewards)
         agg_rejected_rewards = self.accelerator.gather(rejected_rewards)
-        self._metrics[mode]["rewards/chosen"].append(agg_chosen_rewards.mean().item())
-        self._metrics[mode]["rewards/rejected"].append(agg_rejected_rewards.mean().item())
+        self._metrics[mode]["rewards/chosen"].extend(agg_chosen_rewards.float().tolist())
+        self._metrics[mode]["rewards/rejected"].extend(agg_rejected_rewards.float().tolist())
 
         # Reward accuracy
         reward_accuracies = (chosen_rewards > rejected_rewards).float()
         agg_reward_accuracies = self.accelerator.gather(reward_accuracies)
-        self._metrics[mode]["rewards/accuracies"].append(agg_reward_accuracies.mean().item())
+        self._metrics[mode]["rewards/accuracies"].extend(agg_reward_accuracies.float().tolist())
 
         # Reward margins
         margins = chosen_rewards - rejected_rewards
         agg_margins = self.accelerator.gather(margins)
-        self._metrics[mode]["rewards/margins"].append(agg_margins.mean().item())
+        self._metrics[mode]["rewards/margins"].extend(agg_margins.float().tolist())
 
         # Average log probabilities for chosen and rejected completions
-        self._metrics[mode]["logps/chosen"].append(self.accelerator.gather(chosen_logps).mean().item())
-        self._metrics[mode]["logps/rejected"].append(self.accelerator.gather(rejected_logps).mean().item())
+        self._metrics[mode]["logps/chosen"].extend(self.accelerator.gather(chosen_logps).float().tolist())
+        self._metrics[mode]["logps/rejected"].extend(self.accelerator.gather(rejected_logps).float().tolist())
 
         if return_outputs:
             warnings.warn(
@@ -1855,7 +1867,17 @@ class DPOTrainer(_BaseTrainer):
 
     def log(self, logs: dict[str, float], start_time: float | None = None) -> None:
         mode = "train" if self.model.training else "eval"
-        metrics = {key: sum(val) / len(val) for key, val in self._metrics[mode].items()}  # average the metrics
+        metrics = {}
+        for key, values in self._metrics[mode].items():
+            weights = self._metric_weights[mode].get(key)
+            if weights:
+                denominator = sum(weights)
+                metrics[key] = (
+                    sum(value * weight for value, weight in zip(values, weights, strict=True)) / denominator
+                    if denominator else 0.0
+                )
+            else:
+                metrics[key] = sum(values) / len(values)
         # This method can be called both in training and evaluation. When called in evaluation, the keys in `logs`
         # start with "eval_". We need to add the prefix "eval_" to the keys in `metrics` to match the format.
         if mode == "eval":
@@ -1863,6 +1885,7 @@ class DPOTrainer(_BaseTrainer):
         logs.update(metrics)
         super().log(logs, start_time)
         self._metrics[mode].clear()
+        self._metric_weights[mode].clear()
 
     # During eval, Trainer calls prediction_step. If no labels are present in the inputs, it only runs forward and
     # returns logits. We override prediction_step to force compute_loss, because this trainer doesn't involve labels.

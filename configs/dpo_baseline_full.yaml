@@ -18,7 +18,7 @@ learning_rate: 1.0e-5
 beta: 0.1
 per_device_train_batch_size: 1
 gradient_accumulation_steps: 8
-warmup_ratio: 0.03
+warmup_steps: 100
 max_length: 1024
 max_steps: -1
 num_train_epochs: 1
@@ -32,7 +32,10 @@ save_steps: 500
 save_total_limit: 2
 report_to: tensorboard
 
-gradient_checkpointing: true
+# 梯度检查点必须关：EA 的观察器只在 forward 期间临时替换 attn 实现，
+# checkpoint 反向重算时会用回原始 sdpa 路径，两者不一致直接抛 CheckpointError（已在 4090 上复现）。
+# 3B + 24G 不开检查点也放得下（实测约 16-18 GB），而且还省掉一遍注意力统计。
+gradient_checkpointing: false
 disable_dropout: true
 dataset_num_proc: 8
 
